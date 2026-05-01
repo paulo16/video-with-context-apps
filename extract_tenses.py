@@ -147,9 +147,15 @@ def classify_tense(sent_text: str) -> list[str]:
 # ── Download with yt-dlp ─────────────────────────────────────────────────────
 
 
-def download_video(url: str) -> str:
-    """Download video to current dir, return local file path."""
-    print(f"[yt-dlp] Downloading: {url}")
+def download_video(source: str) -> str:
+    """Download video from URL or return local file path."""
+    # Check if it's a local file
+    if os.path.isfile(source):
+        print(f"[local] Using local file: {source}")
+        return source
+
+    # Otherwise, treat as URL and download
+    print(f"[yt-dlp] Downloading: {source}")
 
     # First, get the filename yt-dlp would use (without downloading)
     probe = subprocess.run(
@@ -164,7 +170,7 @@ def download_video(url: str) -> str:
             "--no-download",
             "--socket-timeout",
             "30",
-            url,
+            source,
         ],
         capture_output=True,
         text=True,
@@ -187,7 +193,7 @@ def download_video(url: str) -> str:
             "5",
             "--fragment-retries",
             "5",
-            url,
+            source,
         ],
         check=True,
     )

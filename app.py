@@ -77,16 +77,42 @@ tab_extract, tab_reanalyze, tab_browse = st.tabs(
 # TAB 1 — EXTRACT NEW VIDEO
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_extract:
-    st.subheader("Extract tenses from a YouTube video")
-    st.markdown(
-        "Paste any YouTube URL below. The script will **download → transcribe → detect tenses → cut clips** automatically."
+    st.subheader("Extract tenses from a video")
+
+    # Choose input method
+    input_method = st.radio(
+        "Choose video source:",
+        ["YouTube URL", "Upload local file"],
+        horizontal=True,
+        key="input_method"
     )
 
-    url_input = st.text_input(
-        "YouTube URL",
-        placeholder="https://www.youtube.com/watch?v=...",
-        key="yt_url",
-    )
+    if input_method == "YouTube URL":
+        st.markdown("Paste any YouTube URL below. The script will **download → transcribe → detect tenses → cut clips** automatically.")
+        url_input = st.text_input(
+            "YouTube URL",
+            placeholder="https://www.youtube.com/watch?v=...",
+            key="yt_url",
+        )
+        source_path = url_input
+    else:
+        st.markdown("Upload a local video file (MP4, AVI, MOV, etc.). The script will **transcribe → detect tenses → cut clips** automatically.")
+        uploaded_file = st.file_uploader(
+            "Choose a video file",
+            type=["mp4", "avi", "mov", "mkv", "webm"],
+            key="video_upload"
+        )
+        if uploaded_file is not None:
+            # Save uploaded file temporarily
+            temp_dir = "temp_uploads"
+            os.makedirs(temp_dir, exist_ok=True)
+            temp_path = os.path.join(temp_dir, uploaded_file.name)
+            with open(temp_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            source_path = temp_path
+            st.success(f"File uploaded: {uploaded_file.name}")
+        else:
+            source_path = ""
 
     clip_duration = st.slider(
         "⏱ Clip duration (seconds)",
@@ -115,7 +141,7 @@ with tab_extract:
 
     col_btn, col_stop = st.columns([1, 5])
     start_btn = col_btn.button(
-        "▶ Start extraction", type="primary", disabled=not url_input.strip()
+        "▶ Start extraction", type="primary", disabled=not source_path.strip()
     )
 
     # Session state for extraction
@@ -133,7 +159,7 @@ with tab_extract:
         proc.wait()
         q.put(("exit", proc.returncode))
 
-    if start_btn and url_input.strip():
+    if start_btn and source_path.strip():
         st.session_state.log_lines = []
         st.session_state.running = True
         st.session_state.done = False
@@ -142,7 +168,7 @@ with tab_extract:
             [
                 PYTHON,
                 "extract_tenses.py",
-                url_input.strip(),
+                source_path.strip(),
                 "--clip-duration",
                 str(clip_duration),
                 "--max-clips-per-tense",
