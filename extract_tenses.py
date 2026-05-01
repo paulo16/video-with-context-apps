@@ -157,46 +157,52 @@ def download_video(source: str) -> str:
     # Otherwise, treat as URL and download
     print(f"[yt-dlp] Downloading: {source}")
 
-    # First, get the filename yt-dlp would use (without downloading)
+    # Build yt-dlp command with all anti-blocking options
+    cmd = [
+        "yt-dlp",
+        "--format",
+        "18",  # Use format 18 (MP4 360p) which is most compatible
+        "--output",
+        "%(title)s.%(ext)s",
+        "--user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "--extractor-args",
+        "youtube:player_client=android_music",
+        "--socket-timeout",
+        "60",
+        "--retries",
+        "10",
+        "--fragment-retries",
+        "10",
+        "--retry-sleep",
+        "5",
+        "--force-ipv4",
+        "--skip-unavailable-fragments",
+        source,
+    ]
+
+    # Try to get filename (non-critical, so catch errors)
     probe = subprocess.run(
-        [
-            "yt-dlp",
-            "--format",
-            "best[ext=mp4]/best",
-            "--output",
-            "%(title)s.%(ext)s",
-            "--print",
-            "filename",
-            "--no-download",
-            "--socket-timeout",
-            "30",
-            source,
-        ],
+        cmd[:-1] + ["--print", "filename", "--no-download"],
         capture_output=True,
         text=True,
+        timeout=60,
     )
     expected_path = (
         probe.stdout.strip().splitlines()[-1] if probe.stdout.strip() else None
     )
 
-    # Actually download with robust options for restricted environments
-    subprocess.run(
-        [
-            "yt-dlp",
-            "--format",
-            "best[ext=mp4]/best",
-            "--output",
-            "%(title)s.%(ext)s",
-            "--socket-timeout",
-            "30",
-            "--retries",
-            "5",
-            "--fragment-retries",
-            "5",
-            source,
-        ],
-        check=True,
-    )
+    # Actually download
+    try:
+        subprocess.run(cmd, check=True, timeout=300)
+    except subprocess.CalledProcessError as e:
+        if "403" in str(e) or "Forbidden" in str(e):
+            raise RuntimeError(
+                "YouTube blocked the download (HTTP 403). "
+                "This is a temporary YouTube restriction. "
+                "Please try again later or use local file upload instead."
+            )
+        raise
 
     # Confirm the file exists
     if expected_path and os.path.isfile(expected_path):

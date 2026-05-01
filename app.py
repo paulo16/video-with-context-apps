@@ -78,26 +78,24 @@ tab_extract, tab_reanalyze, tab_browse = st.tabs(
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_extract:
     st.subheader("Extract tenses from a video")
+    
+    # Add warning about YouTube limitations
+    with st.expander("⚠️ **YouTube Download Issues?** (Click to expand)", expanded=False):
+        st.warning(
+            "YouTube sometimes blocks automated downloads on cloud servers. "
+            "**We recommend uploading a local video file instead** for the most reliable experience. "
+            "If you must use YouTube, try again later or use a different URL."
+        )
 
-    # Choose input method
+    # Choose input method - local file upload first
     input_method = st.radio(
         "Choose video source:",
-        ["YouTube URL", "Upload local file"],
+        ["Upload local file", "YouTube URL"],
         horizontal=True,
         key="input_method",
     )
 
-    if input_method == "YouTube URL":
-        st.markdown(
-            "Paste any YouTube URL below. The script will **download → transcribe → detect tenses → cut clips** automatically."
-        )
-        url_input = st.text_input(
-            "YouTube URL",
-            placeholder="https://www.youtube.com/watch?v=...",
-            key="yt_url",
-        )
-        source_path = url_input
-    else:
+    if input_method == "Upload local file":
         st.markdown(
             "Upload a local video file (MP4, AVI, MOV, etc.). The script will **transcribe → detect tenses → cut clips** automatically."
         )
@@ -114,9 +112,20 @@ with tab_extract:
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             source_path = temp_path
-            st.success(f"File uploaded: {uploaded_file.name}")
+            st.success(f"✅ File uploaded: {uploaded_file.name}")
         else:
             source_path = ""
+    else:
+        st.markdown(
+            "⚠️ Paste a YouTube URL. Note: This may fail if YouTube blocks the request. "
+            "If you get a 403 error, please use local file upload instead."
+        )
+        url_input = st.text_input(
+            "YouTube URL",
+            placeholder="https://www.youtube.com/watch?v=...",
+            key="yt_url",
+        )
+        source_path = url_input
 
     clip_duration = st.slider(
         "⏱ Clip duration (seconds)",
@@ -248,7 +257,19 @@ with tab_extract:
                     progress_bar.progress(
                         current_progress, text="❌ Error during extraction"
                     )
-                    st.error("Something went wrong. Check the log above for details.")
+                    # Check for YouTube 403 error
+                    full_log = "\n".join(st.session_state.log_lines)
+                    if "403" in full_log or "Forbidden" in full_log:
+                        st.error(
+                            "❌ **YouTube blocked the download (HTTP 403)**\n\n"
+                            "This is a temporary YouTube protection. Try one of these:\n"
+                            "1. **Wait a few minutes and try again**\n"
+                            "2. **Use a different YouTube video**\n"
+                            "3. **📤 Upload a local video file instead** (most reliable)\n\n"
+                            "Check the log below for more details."
+                        )
+                    else:
+                        st.error("❌ Something went wrong. Check the log above for details.")
                 st.session_state.running = False
                 st.session_state.done = True
                 break
