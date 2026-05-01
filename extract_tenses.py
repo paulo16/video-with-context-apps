@@ -53,7 +53,20 @@ ALL_TENSES = [
     "future_going_to",
 ]
 
-nlp = spacy.load("en_core_web_sm")
+
+# ── Load spacy model with auto-installation fallback ──────────────────────────
+def load_spacy_model():
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        print("[spacy] Model not found. Installing en_core_web_sm...")
+        subprocess.run(
+            [sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=True
+        )
+        return spacy.load("en_core_web_sm")
+
+
+nlp = load_spacy_model()
 
 
 # ── Tense detection ──────────────────────────────────────────────────────────

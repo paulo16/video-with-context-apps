@@ -1,5 +1,7 @@
-streamlit==1.40.2
-openai-whisper==20231117
-spacy==3.7.2
+streamlit==1.39.0
+openai-whisper==20240314
+spacy==3.8.1
+spacy-lookups-data==1.0.5
 yt-dlp==2024.04.09
 pydub==0.25.1
+setuptools>=65.0.0
