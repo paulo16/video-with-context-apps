@@ -42,6 +42,27 @@ OUTPUT_DIR = "clips"
 TRANSCRIPTS_DIR = "transcripts"  # saved per-video transcripts (reused on re-runs)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
+# ── Check system dependencies ────────────────────────────────────────────────
+def check_ffmpeg():
+    """Verify ffmpeg is available (required by Whisper for audio processing)."""
+    result = subprocess.run(
+        ["ffmpeg", "-version"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "❌ ffmpeg is not installed or not in PATH.\n"
+            "ffmpeg is required to transcribe audio from video files.\n"
+            "On Streamlit Cloud, this should be installed via setup.sh.\n"
+            "Please contact support or try uploading a different file."
+        )
+
+
+check_ffmpeg()
+
+
 ALL_TENSES = [
     "present_simple",
     "present_continuous",

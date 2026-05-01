@@ -78,9 +78,11 @@ tab_extract, tab_reanalyze, tab_browse = st.tabs(
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_extract:
     st.subheader("Extract tenses from a video")
-    
+
     # Add warning about YouTube limitations
-    with st.expander("⚠️ **YouTube Download Issues?** (Click to expand)", expanded=False):
+    with st.expander(
+        "⚠️ **YouTube Download Issues?** (Click to expand)", expanded=False
+    ):
         st.warning(
             "YouTube sometimes blocks automated downloads on cloud servers. "
             "**We recommend uploading a local video file instead** for the most reliable experience. "
@@ -257,9 +259,22 @@ with tab_extract:
                     progress_bar.progress(
                         current_progress, text="❌ Error during extraction"
                     )
-                    # Check for YouTube 403 error
+                    # Check for specific errors
                     full_log = "\n".join(st.session_state.log_lines)
-                    if "403" in full_log or "Forbidden" in full_log:
+                    if (
+                        "ffmpeg" in full_log.lower()
+                        or "No such file or directory: 'ffmpeg'" in full_log
+                    ):
+                        st.error(
+                            "❌ **ffmpeg is not installed**\n\n"
+                            "This is a server configuration issue. ffmpeg is required to extract audio from videos.\n\n"
+                            "**What you can do:**\n"
+                            "1. Try again in a few minutes (the server may be updating)\n"
+                            "2. Contact Streamlit Cloud support\n"
+                            "3. Try uploading a different video file\n\n"
+                            "Check the log below for more details."
+                        )
+                    elif "403" in full_log or "Forbidden" in full_log:
                         st.error(
                             "❌ **YouTube blocked the download (HTTP 403)**\n\n"
                             "This is a temporary YouTube protection. Try one of these:\n"
@@ -269,7 +284,9 @@ with tab_extract:
                             "Check the log below for more details."
                         )
                     else:
-                        st.error("❌ Something went wrong. Check the log above for details.")
+                        st.error(
+                            "❌ Something went wrong. Check the log above for details."
+                        )
                 st.session_state.running = False
                 st.session_state.done = True
                 break
