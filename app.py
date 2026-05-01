@@ -84,11 +84,13 @@ with tab_extract:
         "Choose video source:",
         ["YouTube URL", "Upload local file"],
         horizontal=True,
-        key="input_method"
+        key="input_method",
     )
 
     if input_method == "YouTube URL":
-        st.markdown("Paste any YouTube URL below. The script will **download → transcribe → detect tenses → cut clips** automatically.")
+        st.markdown(
+            "Paste any YouTube URL below. The script will **download → transcribe → detect tenses → cut clips** automatically."
+        )
         url_input = st.text_input(
             "YouTube URL",
             placeholder="https://www.youtube.com/watch?v=...",
@@ -96,11 +98,13 @@ with tab_extract:
         )
         source_path = url_input
     else:
-        st.markdown("Upload a local video file (MP4, AVI, MOV, etc.). The script will **transcribe → detect tenses → cut clips** automatically.")
+        st.markdown(
+            "Upload a local video file (MP4, AVI, MOV, etc.). The script will **transcribe → detect tenses → cut clips** automatically."
+        )
         uploaded_file = st.file_uploader(
             "Choose a video file",
             type=["mp4", "avi", "mov", "mkv", "webm"],
-            key="video_upload"
+            key="video_upload",
         )
         if uploaded_file is not None:
             # Save uploaded file temporarily
