@@ -40,6 +40,7 @@ DEFAULT_MAX_CLIPS_PER_TENSE = 5  # cap to avoid generating hundreds of clips
 WHISPER_MODEL = "base"
 OUTPUT_DIR = "clips"
 TRANSCRIPTS_DIR = "transcripts"  # saved per-video transcripts (reused on re-runs)
+VIDEOS_DIR = "videos"
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -178,13 +179,16 @@ def download_video(source: str) -> str:
     # Otherwise, treat as URL and download
     print(f"[yt-dlp] Downloading: {source}")
 
+    os.makedirs(VIDEOS_DIR, exist_ok=True)
+    output_template = os.path.join(VIDEOS_DIR, "%(title)s.%(ext)s")
+
     # Build yt-dlp command with all anti-blocking options
     cmd = [
         "yt-dlp",
         "--format",
         "18",  # Use format 18 (MP4 360p) which is most compatible
         "--output",
-        "%(title)s.%(ext)s",
+        output_template,
         "--user-agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "--extractor-args",
@@ -230,10 +234,14 @@ def download_video(source: str) -> str:
         print(f"[yt-dlp] Saved: {expected_path}")
         return expected_path
 
-    # Fallback: find the most recently modified mp4 in cwd
+    # Fallback: find the most recently modified mp4 in the videos folder
     mp4_files = sorted(
-        [f for f in os.listdir(".") if f.endswith(".mp4")],
-        key=lambda f: os.path.getmtime(f),
+        [
+            os.path.join(VIDEOS_DIR, f)
+            for f in os.listdir(VIDEOS_DIR)
+            if f.endswith(".mp4")
+        ],
+        key=lambda p: os.path.getmtime(p),
         reverse=True,
     )
     if not mp4_files:

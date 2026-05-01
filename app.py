@@ -9,6 +9,7 @@ import queue
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SUMMARY_FILE = "clips/summary.json"
+VIDEOS_DIR = "videos"
 PYTHON = sys.executable
 TENSE_LABELS = {
     "present_simple": "🟡 Present Simple",
@@ -62,6 +63,8 @@ st.set_page_config(
     layout="wide",
 )
 
+os.makedirs(VIDEOS_DIR, exist_ok=True)
+
 st.title("🎬 English Tenses Explorer")
 st.caption(
     "Clips automatically extracted from real conversations — organized by grammatical tense."
@@ -107,10 +110,8 @@ with tab_extract:
             key="video_upload",
         )
         if uploaded_file is not None:
-            # Save uploaded file temporarily
-            temp_dir = "temp_uploads"
-            os.makedirs(temp_dir, exist_ok=True)
-            temp_path = os.path.join(temp_dir, uploaded_file.name)
+            # Save uploaded file into the dedicated videos folder
+            temp_path = os.path.join(VIDEOS_DIR, uploaded_file.name)
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             source_path = temp_path
@@ -306,10 +307,10 @@ with tab_reanalyze:
         "without downloading again. The transcript is reused if already saved (fast)."
     )
 
-    # List .mp4 files in working directory
+    # List .mp4 files in the videos folder
     local_mp4s = sorted(
-        [f for f in os.listdir(".") if f.endswith(".mp4")],
-        key=lambda f: os.path.getmtime(f),
+        [f for f in os.listdir(VIDEOS_DIR) if f.endswith(".mp4")],
+        key=lambda f: os.path.getmtime(os.path.join(VIDEOS_DIR, f)),
         reverse=True,
     )
 
@@ -365,7 +366,7 @@ with tab_reanalyze:
                 [
                     PYTHON,
                     "extract_tenses.py",
-                    selected_mp4,
+                    os.path.join(VIDEOS_DIR, selected_mp4),
                     "--clip-duration",
                     str(reanalyze_clip_dur),
                     "--max-clips-per-tense",
