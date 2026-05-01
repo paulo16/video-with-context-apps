@@ -156,14 +156,14 @@ def download_video(url: str) -> str:
         [
             "yt-dlp",
             "--format",
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-            "--merge-output-format",
-            "mp4",
+            "best[ext=mp4]/best",
             "--output",
             "%(title)s.%(ext)s",
             "--print",
             "filename",
             "--no-download",
+            "--socket-timeout",
+            "30",
             url,
         ],
         capture_output=True,
@@ -173,16 +173,20 @@ def download_video(url: str) -> str:
         probe.stdout.strip().splitlines()[-1] if probe.stdout.strip() else None
     )
 
-    # Actually download
+    # Actually download with robust options for restricted environments
     subprocess.run(
         [
             "yt-dlp",
             "--format",
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4",
-            "--merge-output-format",
-            "mp4",
+            "best[ext=mp4]/best",
             "--output",
             "%(title)s.%(ext)s",
+            "--socket-timeout",
+            "30",
+            "--retries",
+            "5",
+            "--fragment-retries",
+            "5",
             url,
         ],
         check=True,

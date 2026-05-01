@@ -1,0 +1,16 @@
+# yt-dlp configuration for Streamlit Cloud environment
+# Uses robust options to handle YouTube extraction in restricted environments
+
+# User agent to avoid 403 errors from YouTube
+--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+# Retry options for network issues
+--retries 5
+--fragment-retries 5
+--socket-timeout 30
+
+# Skip unavailable segments (for live streams)
+--skip-unavailable-fragments
+
+# Use ipv4 if available
+--socket-ip-local-address 127.0.0.1
