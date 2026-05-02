@@ -23,8 +23,9 @@ Usage:
 import sys
 import os
 import json
-import subprocess
 import re
+import shutil
+import subprocess
 # Force UTF-8 output so filenames with non-ASCII chars don't crash on Windows
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -229,6 +230,19 @@ def download_video(source: str) -> str:
         "bestvideo[height<=720]+bestaudio/"
         "best[height<=720][ext=mp4]/best[ext=mp4]/best[height<=720]/best"
     )
+    # YouTube requires EJS + a JS runtime (Deno recommended). See yt-dlp wiki / EJS.
+    ydl_js: list[str] = []
+    if shutil.which("deno"):
+        ydl_js.extend(["--js-runtimes", "deno"])
+    elif shutil.which("node"):
+        ydl_js.extend(["--js-runtimes", "node"])
+    else:
+        print(
+            "[yt-dlp] WARNING: No Deno or Node in PATH — YouTube often returns HTTP 403 without a JS runtime. "
+            "Install Deno on the server (see setup.sh) or upload a local video.",
+            flush=True,
+        )
+
     cmd = [
         "yt-dlp",
         "--format",
@@ -242,6 +256,7 @@ def download_video(source: str) -> str:
         "--user-agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        *ydl_js,
         "--socket-timeout",
         "60",
         "--retries",
@@ -278,8 +293,8 @@ def download_video(source: str) -> str:
         if "403" in log or "Forbidden" in log:
             raise RuntimeError(
                 "YouTube blocked the download (HTTP 403). "
-                "Update yt-dlp on the server (`pip install -U yt-dlp`), try again later, "
-                "or upload the video file instead (most reliable on Streamlit Cloud)."
+                "Ensure the server has Deno in PATH, `pip install -U 'yt-dlp[default]'` (EJS scripts), "
+                "and redeploy. Otherwise upload the video file (most reliable on Streamlit Cloud)."
             )
         raise RuntimeError(
             f"yt-dlp failed (exit {result.returncode}). "

@@ -23,6 +23,8 @@ from tense_constants import (
 )
 
 # ── Config ────────────────────────────────────────────────────────────────────
+# Keep in sync with .streamlit/config.toml → [server] maxUploadSize
+MAX_UPLOAD_MB = 1024
 SUMMARY_FILE = "clips/summary.json"
 PYTHON = sys.executable
 TENSE_LABELS = {
@@ -139,10 +141,9 @@ with tab_extract:
         "⚠️ **YouTube download issues?** (click to expand)", expanded=False
     ):
         st.warning(
-            "YouTube often blocks or rate-limits cloud IPs (HTTP 403). "
-            "**Uploading a local MP4 is the most reliable option.** "
-            "If you use URLs, keep **yt-dlp up to date** on the server (`pip install -U yt-dlp`); "
-            "very new YouTube changes sometimes need a JS runtime (see yt-dlp wiki / EJS)."
+            "YouTube requires a **JavaScript runtime (Deno)** and **yt-dlp[default]** (EJS scripts) on the server; "
+            "see `setup.sh` + `requirements.txt` in this repo. Cloud IPs can still get HTTP 403 — "
+            "**uploading a local MP4 remains the most reliable option.**"
         )
 
     input_method = st.radio(
@@ -155,6 +156,10 @@ with tab_extract:
     if input_method == "Upload local file":
         st.markdown(
             "Upload a local video file (MP4, AVI, MOV, etc.). The script will **transcribe → detect tenses → cut clips** automatically."
+        )
+        st.caption(
+            f"Maximum upload size: **{MAX_UPLOAD_MB} MB** per file (Streamlit `server.maxUploadSize`). "
+            "For larger files, run the app locally or split the video."
         )
         uploaded_file = st.file_uploader(
             "Choose a video file",

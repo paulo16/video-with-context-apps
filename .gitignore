@@ -7,8 +7,8 @@ __pycache__/
 *.egg-info/
 .venv/
 
-# Streamlit
-.streamlit/
+# Streamlit (keep config.toml in git; never commit secrets)
+.streamlit/secrets.toml
 
 # OS / tooling
 .DS_Store
