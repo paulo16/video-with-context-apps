@@ -19,7 +19,11 @@ TENSE_LABELS = {
     "present_perfect": "🟢 Present Perfect",
     "present_perfect_continuous": "🟠 Present Perfect Continuous",
     "past_perfect": "🟤 Past Perfect",
-    "future_going_to": "⬜ Future (going to)",
+    "future_simple": "⬜ Future Simple",
+    "future_continuous": "🟠 Future Continuous",
+    "future_perfect": "🟢 Future Perfect",
+    "future_perfect_continuous": "🟠 Future Perfect Continuous",
+    "future_going_to": "⬛ Future (going to)",
 }
 TENSE_COLORS = {
     "present_simple": "#5f5f1e",
@@ -29,6 +33,10 @@ TENSE_COLORS = {
     "present_perfect": "#1e5f3a",
     "present_perfect_continuous": "#5f4a1e",
     "past_perfect": "#4a1e5f",
+    "future_simple": "#555555",
+    "future_continuous": "#774411",
+    "future_perfect": "#117744",
+    "future_perfect_continuous": "#774477",
     "future_going_to": "#2a2a2a",
 }
 TENSE_EXPLANATIONS = {
@@ -39,6 +47,10 @@ TENSE_EXPLANATIONS = {
     "present_perfect": "Past action with present relevance. → *I **have seen** that movie.*",
     "present_perfect_continuous": "Started in the past, still ongoing. → *She **has been waiting** for hours.*",
     "past_perfect": "Action before another past action. → *She **had worked** before I arrived.*",
+    "future_simple": "Future action expressed with will/shall. → *She **will work** tomorrow.*",
+    "future_continuous": "Ongoing future action. → *She **will be working** at 5 PM.*",
+    "future_perfect": "Action completed before a future moment. → *She **will have finished** by then.*",
+    "future_perfect_continuous": "Action ongoing until a future moment. → *She **will have been working** for hours.*",
     "future_going_to": "Planned future. → *She **is going to work** tomorrow.*",
 }
 
@@ -217,11 +229,20 @@ with tab_extract:
                 "🎙️ Transcribing with Whisper (this takes a while)…",
             ),
             "[Whisper] Done": (70, "✅ Transcription done"),
-            "[past_simple]": (75, "✂️ Extracting Past Simple clips…"),
+            "[present_simple]": (75, "✂️ Extracting Present Simple clips…"),
+            "[past_simple]": (80, "✂️ Extracting Past Simple clips…"),
             "[present_perfect]": (85, "✂️ Extracting Present Perfect clips…"),
             "[present_perfect_continuous]": (
                 90,
                 "✂️ Extracting Present Perfect Continuous clips…",
+            ),
+            "[future_going_to]": (92, "✂️ Extracting Future (going to) clips…"),
+            "[future_simple]": (93, "✂️ Extracting Future Simple clips…"),
+            "[future_continuous]": (94, "✂️ Extracting Future Continuous clips…"),
+            "[future_perfect]": (95, "✂️ Extracting Future Perfect clips…"),
+            "[future_perfect_continuous]": (
+                96,
+                "✂️ Extracting Future Perfect Continuous clips…",
             ),
             "✅ Done!": (100, "✅ All clips extracted!"),
         }
@@ -397,8 +418,20 @@ with tab_reanalyze:
                 "[Whisper] Transcribing": (20, "🎙️ Transcribing…"),
                 "[Whisper] Done": (50, "✅ Transcript ready"),
                 "[present_simple]": (55, "✂️ Extracting Present Simple clips…"),
-                "[past_simple]": (65, "✂️ Extracting Past Simple clips…"),
-                "[present_perfect]": (75, "✂️ Extracting clips…"),
+                "[past_simple]": (60, "✂️ Extracting Past Simple clips…"),
+                "[present_perfect]": (65, "✂️ Extracting Present Perfect clips…"),
+                "[present_perfect_continuous]": (
+                    70,
+                    "✂️ Extracting Present Perfect Continuous clips…",
+                ),
+                "[future_going_to]": (72, "✂️ Extracting Future (going to) clips…"),
+                "[future_simple]": (73, "✂️ Extracting Future Simple clips…"),
+                "[future_continuous]": (74, "✂️ Extracting Future Continuous clips…"),
+                "[future_perfect]": (75, "✂️ Extracting Future Perfect clips…"),
+                "[future_perfect_continuous]": (
+                    76,
+                    "✂️ Extracting Future Perfect Continuous clips…",
+                ),
                 "✅ Done!": (100, "✅ Done!"),
             }
 

@@ -8,8 +8,10 @@ Detects:
   - past_continuous         She was working when I called.
   - present_perfect         She has worked here for years.
   - present_perfect_cont    She has been working all day.
-  - past_perfect            She had worked before I arrived.
-  - future_going_to         She is going to work tomorrow.
+  - past_perfect            She had worked before I arrived.  - future_simple           She will work tomorrow.
+  - future_continuous       She will be working at 5 PM.
+  - future_perfect          She will have finished by then.
+  - future_perfect_cont     She will have been working for hours.  - future_going_to         She is going to work tomorrow.
 
 Clip duration: default 30 s (configurable with --clip-duration).
 Full transcript is saved to transcripts/<video>.json and reused on re-runs.
@@ -72,6 +74,10 @@ ALL_TENSES = [
     "present_perfect",
     "present_perfect_continuous",
     "past_perfect",
+    "future_simple",
+    "future_continuous",
+    "future_perfect",
+    "future_perfect_continuous",
     "future_going_to",
 ]
 
@@ -108,6 +114,51 @@ def classify_tense(sent_text: str) -> list[str]:
                     if j + 1 < n and txt(j + 1) == "to":
                         if j + 2 < n and tag(j + 2) in ("VB", "VBZ", "VBP"):
                             found.add("future_going_to")
+
+        # ── future forms with will/shall ─────────────────────────────
+        if t == "MD" and txt(i) in ("will", "shall"):
+            # future perfect continuous: will have been VBG
+            for j in range(i + 1, min(i + 6, n)):
+                if txt(j) == "have":
+                    for k in range(j + 1, min(j + 6, n)):
+                        if txt(k) == "been":
+                            for m in range(k + 1, min(k + 5, n)):
+                                if tag(m) == "VBG":
+                                    found.add("future_perfect_continuous")
+                                    break
+                            break
+                    if "future_perfect_continuous" in found:
+                        break
+            # future perfect: will have VBN (not been)
+            if "future_perfect_continuous" not in found:
+                for j in range(i + 1, min(i + 5, n)):
+                    if txt(j) == "have":
+                        for k in range(j + 1, min(j + 5, n)):
+                            if tag(k) == "VBN" and txt(k) != "been":
+                                found.add("future_perfect")
+                                break
+                        break
+            # future continuous: will be VBG
+            for j in range(i + 1, min(i + 5, n)):
+                if txt(j) == "be":
+                    for k in range(j + 1, min(j + 5, n)):
+                        if tag(k) == "VBG":
+                            found.add("future_continuous")
+                            break
+                    break
+            # future simple: will + VB (if not captured by other future forms)
+            if not any(
+                tense in found
+                for tense in (
+                    "future_perfect_continuous",
+                    "future_perfect",
+                    "future_continuous",
+                )
+            ):
+                for j in range(i + 1, min(i + 4, n)):
+                    if tag(j) == "VB":
+                        found.add("future_simple")
+                        break
 
         # ── present perfect continuous: have/has + been + VBG ──────────
         if t in ("VBZ", "VBP") and l == "have":
