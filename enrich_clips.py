@@ -7,14 +7,16 @@ updates summary.json in-place, one clip at a time.
 Usage:  python enrich_clips.py
 """
 
+import argparse
 import json
 import os
 import sys
 
 import whisper
 
+from tense_constants import DEFAULT_WHISPER_MODEL, normalize_whisper_model
+
 SUMMARY_FILE = "clips/summary.json"
-WHISPER_MODEL = "base"
 
 
 def sentence_matches(detected: str, seg_text: str) -> bool:
@@ -25,6 +27,22 @@ def sentence_matches(detected: str, seg_text: str) -> bool:
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Enrich clips with Whisper transcripts")
+    parser.add_argument(
+        "--index",
+        type=int,
+        default=None,
+        help="Only enrich clip at this zero-based index in summary.json",
+    )
+    parser.add_argument(
+        "--whisper-model",
+        type=str,
+        default=DEFAULT_WHISPER_MODEL,
+        help=f"Whisper model (default {DEFAULT_WHISPER_MODEL})",
+    )
+    args, _unknown = parser.parse_known_args()
+    whisper_model = normalize_whisper_model(args.whisper_model)
+
     if not os.path.exists(SUMMARY_FILE):
         print("No summary.json found. Run an extraction first.")
         sys.exit(1)
@@ -32,12 +50,7 @@ def main():
     with open(SUMMARY_FILE, encoding="utf-8") as f:
         clips = json.load(f)
 
-    # Support --index N to enrich a single clip
-    target_index = None
-    if "--index" in sys.argv:
-        pos = sys.argv.index("--index")
-        if pos + 1 < len(sys.argv):
-            target_index = int(sys.argv[pos + 1])
+    target_index = args.index
 
     if target_index is not None:
         if clips[target_index].get("context"):
@@ -50,8 +63,8 @@ def main():
             print("All clips already have transcripts. Nothing to do.")
             sys.exit(0)
 
-    print(f"[Whisper] Loading model '{WHISPER_MODEL}'…")
-    model = whisper.load_model(WHISPER_MODEL)
+    print(f"[Whisper] Loading model '{whisper_model}'…")
+    model = whisper.load_model(whisper_model)
     print(f"[Whisper] Model ready. {len(missing)} clips to enrich.\n")
 
     for done, idx in enumerate(missing, 1):
