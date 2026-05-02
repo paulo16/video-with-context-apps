@@ -1,0 +1,4 @@
+# https://docs.streamlit.io/develop/concepts/configuration
+# Default upload limit is 200 MB; raise for local video uploads.
+[server]
+maxUploadSize = 1024
