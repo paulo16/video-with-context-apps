@@ -17,6 +17,7 @@ Thumbs.db
 # Local outputs
 clips/
 transcripts/
+videos/
 *.mp4
 *.log
 

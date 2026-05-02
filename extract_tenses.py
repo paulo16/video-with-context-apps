@@ -25,8 +25,6 @@ import os
 import json
 import subprocess
 import re
-import tempfile
-
 # Force UTF-8 output so filenames with non-ASCII chars don't crash on Windows
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -36,13 +34,20 @@ import argparse
 import whisper
 import spacy
 
+from tense_constants import (
+    ALL_TENSES,
+    DEFAULT_WHISPER_MODEL,
+    VALID_WHISPER_MODELS,
+    VIDEOS_DOWNLOADS_DIR,
+    VIDEOS_ROOT,
+    normalize_whisper_model,
+)
+
 # ── Config ──────────────────────────────────────────────────────────────────
 DEFAULT_CLIP_DURATION = 30  # seconds — short enough to stay focused
 DEFAULT_MAX_CLIPS_PER_TENSE = 5  # cap to avoid generating hundreds of clips
-WHISPER_MODEL = "base"
 OUTPUT_DIR = "clips"
 TRANSCRIPTS_DIR = "transcripts"  # saved per-video transcripts (reused on re-runs)
-VIDEOS_DIR = "videos"
 # ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -63,25 +68,9 @@ def check_ffmpeg():
         )
 
 
-check_ffmpeg()
-
-
-ALL_TENSES = [
-    "present_simple",
-    "present_continuous",
-    "past_simple",
-    "past_continuous",
-    "present_perfect",
-    "present_perfect_continuous",
-    "past_perfect",
-    "future_simple",
-    "future_continuous",
-    "future_perfect",
-    "future_perfect_continuous",
-    "future_going_to",
-]
-
 nlp = spacy.load("en_core_web_sm")
+
+MIN_CLIP_FILE_BYTES = 256
 
 
 # ── Tense detection ──────────────────────────────────────────────────────────
@@ -230,8 +219,8 @@ def download_video(source: str) -> str:
     # Otherwise, treat as URL and download
     print(f"[yt-dlp] Downloading: {source}")
 
-    os.makedirs(VIDEOS_DIR, exist_ok=True)
-    output_template = os.path.join(VIDEOS_DIR, "%(title)s.%(ext)s")
+    os.makedirs(VIDEOS_DOWNLOADS_DIR, exist_ok=True)
+    output_template = os.path.join(VIDEOS_DOWNLOADS_DIR, "%(title)s.%(ext)s")
 
     # Build yt-dlp command with all anti-blocking options
     cmd = [
@@ -285,19 +274,24 @@ def download_video(source: str) -> str:
         print(f"[yt-dlp] Saved: {expected_path}")
         return expected_path
 
-    # Fallback: find the most recently modified mp4 in the videos folder
-    mp4_files = sorted(
-        [
-            os.path.join(VIDEOS_DIR, f)
-            for f in os.listdir(VIDEOS_DIR)
+    # Fallback: newest mp4 in downloads/, then legacy flat videos/ root
+    candidates = []
+    if os.path.isdir(VIDEOS_DOWNLOADS_DIR):
+        candidates.extend(
+            os.path.join(VIDEOS_DOWNLOADS_DIR, f)
+            for f in os.listdir(VIDEOS_DOWNLOADS_DIR)
             if f.endswith(".mp4")
-        ],
-        key=lambda p: os.path.getmtime(p),
-        reverse=True,
-    )
+        )
+    if os.path.isdir(VIDEOS_ROOT):
+        candidates.extend(
+            os.path.join(VIDEOS_ROOT, f)
+            for f in os.listdir(VIDEOS_ROOT)
+            if f.endswith(".mp4") and os.path.isfile(os.path.join(VIDEOS_ROOT, f))
+        )
+    mp4_files = sorted(candidates, key=lambda p: os.path.getmtime(p), reverse=True)
     if not mp4_files:
         raise FileNotFoundError(
-            "yt-dlp finished but no .mp4 file found in current directory."
+            "yt-dlp finished but no .mp4 file found under videos/downloads or videos/."
         )
     path = mp4_files[0]
     print(f"[yt-dlp] Saved: {path}")
@@ -307,8 +301,9 @@ def download_video(source: str) -> str:
 # ── Transcribe with Whisper ───────────────────────────────────────────────────
 
 
-def transcribe(video_path: str) -> list[dict]:
+def transcribe(video_path: str, whisper_model: str = DEFAULT_WHISPER_MODEL) -> list[dict]:
     """Transcribe video; reuse saved transcript if available."""
+    wm = normalize_whisper_model(whisper_model)
     os.makedirs(TRANSCRIPTS_DIR, exist_ok=True)
     stem = os.path.splitext(os.path.basename(video_path))[0]
     transcript_path = os.path.join(TRANSCRIPTS_DIR, f"{stem}.json")
@@ -318,8 +313,8 @@ def transcribe(video_path: str) -> list[dict]:
         with open(transcript_path, encoding="utf-8") as f:
             return json.load(f)
 
-    print(f"[Whisper] Transcribing (model={WHISPER_MODEL}) …")
-    model = whisper.load_model(WHISPER_MODEL)
+    print(f"[Whisper] Transcribing (model={wm}) …")
+    model = whisper.load_model(wm)
     result = model.transcribe(video_path, language="en", word_timestamps=False)
     segments = [
         {"start": s["start"], "end": s["end"], "text": s["text"]}
@@ -382,9 +377,10 @@ def extract_clip(
     end: float,
     out_path: str,
     context: list | None = None,
-):
+) -> bool:
     """Cut [start, end] from source and save to out_path.
     If context is provided, subtitles are burned in (re-encode with libx264).
+    Returns True if the output file exists and is non-trivial size.
     """
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
@@ -397,7 +393,7 @@ def extract_clip(
         # Use forward slashes for the filter path (FFmpeg on Windows accepts these)
         ass_filter_path = ass_path.replace("\\", "/")
         try:
-            subprocess.run(
+            r = subprocess.run(
                 [
                     "ffmpeg",
                     "-y",
@@ -421,14 +417,20 @@ def extract_clip(
                     "128k",
                     out_path,
                 ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
             )
+            if r.returncode != 0:
+                err = (r.stderr or "").strip()[-4000:]
+                print(f"[ffmpeg] exit={r.returncode} stderr (tail):\n{err}", flush=True)
+                return False
         finally:
             if os.path.exists(ass_path):
                 os.remove(ass_path)
     else:
-        subprocess.run(
+        r = subprocess.run(
             [
                 "ffmpeg",
                 "-y",
@@ -442,12 +444,32 @@ def extract_clip(
                 "copy",
                 out_path,
             ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
+        if r.returncode != 0:
+            err = (r.stderr or "").strip()[-4000:]
+            print(f"[ffmpeg] exit={r.returncode} stderr (tail):\n{err}", flush=True)
+            return False
+
+    if not os.path.isfile(out_path) or os.path.getsize(out_path) < MIN_CLIP_FILE_BYTES:
+        print(
+            f"[ffmpeg] Output missing or too small (<{MIN_CLIP_FILE_BYTES} B): {out_path}",
+            flush=True,
+        )
+        return False
+    return True
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
+
+
+def merge_clips_for_source(existing: list, hits: list, video_stem: str) -> list:
+    """Keep clips from other sources; replace entries for video_stem with hits."""
+    kept = [c for c in existing if c.get("source_video") != video_stem]
+    return kept + hits
 
 
 def process(
@@ -455,6 +477,7 @@ def process(
     clip_duration: int = DEFAULT_CLIP_DURATION,
     burn_subtitles: bool = True,
     max_clips_per_tense: int = DEFAULT_MAX_CLIPS_PER_TENSE,
+    whisper_model: str = DEFAULT_WHISPER_MODEL,
 ):
     half = clip_duration // 2
 
@@ -463,7 +486,7 @@ def process(
     else:
         video_path = source
 
-    segments = transcribe(video_path)
+    segments = transcribe(video_path, whisper_model=whisper_model)
 
     counters = {t: 0 for t in ALL_TENSES}
     hits = []
@@ -517,26 +540,34 @@ def process(
                 }
             )
             print(f"[{tense}] {text[:70]}  → {out_path}")
-            extract_clip(
+            ok = extract_clip(
                 video_path,
                 clip_start,
                 clip_end,
                 out_path,
                 context=context if burn_subtitles else None,
             )
+            if not ok:
+                print(f"[ERROR] Failed to write clip file: {out_path}", flush=True)
 
-    # Merge: keep clips from other videos, replace this video's clips
-    kept = [c for c in existing if c.get("source_video") != video_stem]
-    merged = kept + hits
+    merged = merge_clips_for_source(existing, hits, video_stem)
 
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(merged, f, indent=2, ensure_ascii=False)
 
+    abs_clips = os.path.abspath(OUTPUT_DIR)
+    abs_source = os.path.abspath(video_path)
+    abs_summary = os.path.abspath(summary_path)
     print(f"\n✅ Done! {len(hits)} clips (duration={clip_duration}s) → {OUTPUT_DIR}/")
     for t in ALL_TENSES:
         if counters[t]:
             print(f"   {t:<36} {counters[t]}")
     print(f"   Summary: {summary_path}")
+    print(f"[saved] Full source video (kept on disk): {abs_source}")
+    print(
+        f"[saved] Cut clips (MP4, burned subs if enabled): {abs_clips}/<tense>/*.mp4"
+    )
+    print(f"[saved] Browse index (metadata): {abs_summary}")
 
 
 if __name__ == "__main__":
@@ -559,10 +590,19 @@ if __name__ == "__main__":
         default=DEFAULT_MAX_CLIPS_PER_TENSE,
         help=f"Max clips extracted per tense (default {DEFAULT_MAX_CLIPS_PER_TENSE})",
     )
+    parser.add_argument(
+        "--whisper-model",
+        type=str,
+        default=DEFAULT_WHISPER_MODEL,
+        help=f"Whisper model name (default {DEFAULT_WHISPER_MODEL}). Options: "
+        + ", ".join(VALID_WHISPER_MODELS),
+    )
     args = parser.parse_args()
+    check_ffmpeg()
     process(
         args.source,
         clip_duration=args.clip_duration,
         burn_subtitles=not args.no_subtitles,
         max_clips_per_tense=args.max_clips_per_tense,
+        whisper_model=normalize_whisper_model(args.whisper_model),
     )
