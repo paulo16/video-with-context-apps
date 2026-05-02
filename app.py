@@ -139,9 +139,10 @@ with tab_extract:
         "⚠️ **YouTube download issues?** (click to expand)", expanded=False
     ):
         st.warning(
-            "YouTube sometimes blocks automated downloads on cloud servers. "
-            "**We recommend uploading a local video file instead** for the most reliable experience. "
-            "If you must use YouTube, try again later or use a different URL."
+            "YouTube often blocks or rate-limits cloud IPs (HTTP 403). "
+            "**Uploading a local MP4 is the most reliable option.** "
+            "If you use URLs, keep **yt-dlp up to date** on the server (`pip install -U yt-dlp`); "
+            "very new YouTube changes sometimes need a JS runtime (see yt-dlp wiki / EJS)."
         )
 
     input_method = st.radio(

@@ -222,17 +222,26 @@ def download_video(source: str) -> str:
     os.makedirs(VIDEOS_DOWNLOADS_DIR, exist_ok=True)
     output_template = os.path.join(VIDEOS_DOWNLOADS_DIR, "%(title)s.%(ext)s")
 
-    # Build yt-dlp command with all anti-blocking options
+    # yt-dlp defaults track YouTube changes; avoid deprecated player_client=android_music.
+    # Prefer merged MP4; fall back through simpler format chains if merge is unavailable.
+    fmt = (
+        "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/"
+        "bestvideo[height<=720]+bestaudio/"
+        "best[height<=720][ext=mp4]/best[ext=mp4]/best[height<=720]/best"
+    )
     cmd = [
         "yt-dlp",
         "--format",
-        "18",  # Use format 18 (MP4 360p) which is most compatible
+        fmt,
+        "--merge-output-format",
+        "mp4",
         "--output",
         output_template,
+        "--referer",
+        "https://www.youtube.com/",
         "--user-agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "--extractor-args",
-        "youtube:player_client=android_music",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         "--socket-timeout",
         "60",
         "--retries",
@@ -241,12 +250,10 @@ def download_video(source: str) -> str:
         "10",
         "--retry-sleep",
         "5",
-        "--force-ipv4",
         "--skip-unavailable-fragments",
         source,
     ]
 
-    # Try to get filename (non-critical, so catch errors)
     probe = subprocess.run(
         cmd[:-1] + ["--print", "filename", "--no-download"],
         capture_output=True,
@@ -257,17 +264,27 @@ def download_video(source: str) -> str:
         probe.stdout.strip().splitlines()[-1] if probe.stdout.strip() else None
     )
 
-    # Actually download
-    try:
-        subprocess.run(cmd, check=True, timeout=300)
-    except subprocess.CalledProcessError as e:
-        if "403" in str(e) or "Forbidden" in str(e):
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=600,
+    )
+    if result.returncode != 0:
+        log = (result.stderr or "") + "\n" + (result.stdout or "")
+        print(log[-8000:], flush=True)
+        if "403" in log or "Forbidden" in log:
             raise RuntimeError(
                 "YouTube blocked the download (HTTP 403). "
-                "This is a temporary YouTube restriction. "
-                "Please try again later or use local file upload instead."
+                "Update yt-dlp on the server (`pip install -U yt-dlp`), try again later, "
+                "or upload the video file instead (most reliable on Streamlit Cloud)."
             )
-        raise
+        raise RuntimeError(
+            f"yt-dlp failed (exit {result.returncode}). "
+            "See log above; uploading a local file often works when YouTube changes their API."
+        )
 
     # Confirm the file exists
     if expected_path and os.path.isfile(expected_path):
