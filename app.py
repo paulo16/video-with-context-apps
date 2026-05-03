@@ -8,11 +8,11 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from typing import Callable
 
 import streamlit as st
 
 from step_maps import build_extraction_step_map, build_reanalyze_step_map
-from streamlit_subprocess import drain_subprocess_queue, start_stream_reader
 from tense_constants import (
     ALL_TENSES,
     DEFAULT_WHISPER_MODEL,
@@ -22,6 +22,50 @@ from tense_constants import (
     VIDEOS_UPLOADS_DIR,
     list_source_mp4_rel_paths,
 )
+
+
+def _stream_process_reader(proc: subprocess.Popen, q: queue.Queue) -> None:
+    for line in iter(proc.stdout.readline, ""):
+        q.put(("line", line.rstrip()))
+    proc.wait()
+    q.put(("exit", proc.returncode))
+
+
+def start_stream_reader(proc: subprocess.Popen, q: queue.Queue) -> threading.Thread:
+    t = threading.Thread(target=_stream_process_reader, args=(proc, q), daemon=True)
+    t.start()
+    return t
+
+
+def drain_subprocess_queue(
+    q: queue.Queue,
+    *,
+    log_lines: list[str],
+    render_log: Callable[[str], None],
+    progress_bar,
+    step_map: dict[str, tuple[int, str]],
+    progress_holder: list[int],
+    queue_timeout: float = 0.3,
+) -> int:
+    while True:
+        try:
+            msg_type, payload = q.get(timeout=queue_timeout)
+        except queue.Empty:
+            render_log("\n".join(log_lines[-60:]))
+            continue
+
+        if msg_type == "line":
+            log_lines.append(payload)
+            render_log("\n".join(log_lines[-60:]))
+            current = progress_holder[0]
+            for keyword, (pct, label) in step_map.items():
+                if keyword in payload and pct > current:
+                    progress_holder[0] = pct
+                    progress_bar.progress(pct, text=label)
+                    break
+        elif msg_type == "exit":
+            return int(payload)
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 # Keep in sync with .streamlit/config.toml → [server] maxUploadSize
