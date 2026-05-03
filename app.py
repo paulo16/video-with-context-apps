@@ -14,6 +14,7 @@ import streamlit as st
 from step_maps import build_extraction_step_map, build_reanalyze_step_map
 from streamlit_subprocess import drain_subprocess_queue, start_stream_reader
 from tense_constants import (
+    ALL_TENSES,
     DEFAULT_WHISPER_MODEL,
     VALID_WHISPER_MODELS,
     VIDEOS_DOWNLOADS_DIR,
@@ -540,7 +541,9 @@ with tab_browse:
 
     st.sidebar.header("Filters")
 
-    all_tenses = sorted(set(c["tense"] for c in clips))
+    _clip_tense_ids = {c["tense"] for c in clips}
+    _extra_tenses = sorted(_clip_tense_ids - set(ALL_TENSES))
+    all_tenses = list(ALL_TENSES) + _extra_tenses
     selected_tenses = st.sidebar.multiselect(
         "Tense",
         options=all_tenses,
