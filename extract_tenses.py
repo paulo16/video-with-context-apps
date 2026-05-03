@@ -8,10 +8,14 @@ Detects:
   - past_continuous         She was working when I called.
   - present_perfect         She has worked here for years.
   - present_perfect_cont    She has been working all day.
-  - past_perfect            She had worked before I arrived.  - future_simple           She will work tomorrow.
+  - past_perfect            She had worked before I arrived.
+  - future_simple           She will work tomorrow.
   - future_continuous       She will be working at 5 PM.
   - future_perfect          She will have finished by then.
-  - future_perfect_cont     She will have been working for hours.  - future_going_to         She is going to work tomorrow.
+  - future_perfect_cont     She will have been working for hours.
+  - future_going_to         She is going to work tomorrow.
+  - conditional             She would travel / She would have called.
+  - reported_speech         He said that she was tired.
 
 Clip duration: default 30 s (configurable with --clip-duration).
 Full transcript is saved to transcripts/<video>.json and reused on re-runs.
@@ -72,6 +76,38 @@ def check_ffmpeg():
 nlp = spacy.load("en_core_web_sm")
 
 MIN_CLIP_FILE_BYTES = 256
+
+# Verbs that introduce indirect speech (must govern a clausal complement in the parse).
+_REPORTING_LEMMAS = frozenset(
+    {
+        "say",
+        "tell",
+        "ask",
+        "answer",
+        "reply",
+        "explain",
+        "mention",
+        "claim",
+        "report",
+        "state",
+        "warn",
+        "advise",
+        "suggest",
+        "insist",
+        "promise",
+        "shout",
+        "whisper",
+        "note",
+        "add",
+        "observe",
+        "describe",
+        "announce",
+        "admit",
+        "deny",
+        "complain",
+        "recommend",
+    }
+)
 
 
 # ── Tense detection ──────────────────────────────────────────────────────────
@@ -203,6 +239,45 @@ def classify_tense(sent_text: str) -> list[str]:
             and tok.dep_ in ("ROOT", "relcl", "advcl", "ccomp", "xcomp")
         ):
             found.add("present_simple")
+
+        # ── conditional: would + base verb / would have + past participle ──
+        if t == "MD" and l == "would":
+            have_vbn = False
+            for j in range(i + 1, min(i + 14, n)):
+                if txt(j) == "have":
+                    for k in range(j + 1, min(j + 10, n)):
+                        if tag(k) == "VBN":
+                            have_vbn = True
+                            break
+                    break
+            if have_vbn:
+                found.add("conditional")
+            else:
+                for j in range(i + 1, min(i + 14, n)):
+                    if tag(j) in ("RB", "RP", "TO"):
+                        continue
+                    if tag(j) == "VB":
+                        found.add("conditional")
+                        break
+
+        # ── conditional: could/might have + VBN (hypothetical past result) ──
+        if t == "MD" and l in ("could", "might"):
+            for j in range(i + 1, min(i + 14, n)):
+                if txt(j) == "have":
+                    for k in range(j + 1, min(j + 10, n)):
+                        if tag(k) == "VBN":
+                            found.add("conditional")
+                            break
+                    break
+
+    # ── reported speech: reporting verb + clausal complement (ccomp) ────
+    for tok in tokens:
+        if tok.pos_ != "VERB" or tok.lemma_.lower() not in _REPORTING_LEMMAS:
+            continue
+        for child in tok.children:
+            if child.dep_ == "ccomp":
+                found.add("reported_speech")
+                break
 
     return list(found)
 

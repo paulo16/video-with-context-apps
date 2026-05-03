@@ -41,6 +41,8 @@ TENSE_LABELS = {
     "future_perfect": "🟢 Future Perfect",
     "future_perfect_continuous": "🟠 Future Perfect Continuous",
     "future_going_to": "⬛ Future (going to)",
+    "conditional": "◆ Conditional (would / would have)",
+    "reported_speech": "💬 Reported speech",
 }
 TENSE_COLORS = {
     "present_simple": "#5f5f1e",
@@ -55,6 +57,8 @@ TENSE_COLORS = {
     "future_perfect": "#117744",
     "future_perfect_continuous": "#774477",
     "future_going_to": "#2a2a2a",
+    "conditional": "#8866aa",
+    "reported_speech": "#446688",
 }
 TENSE_EXPLANATIONS = {
     "present_simple": "Habitual / general truth. → *She **works** every day.*",
@@ -69,6 +73,8 @@ TENSE_EXPLANATIONS = {
     "future_perfect": "Action completed before a future moment. → *She **will have finished** by then.*",
     "future_perfect_continuous": "Action ongoing until a future moment. → *She **will have been working** for hours.*",
     "future_going_to": "Planned future. → *She **is going to work** tomorrow.*",
+    "conditional": "Hypothetical / unreal with *would* or *would have*. → *I **would agree**.* / *They **would have won**.*",
+    "reported_speech": "Indirect speech after verbs like *say*, *tell*, *explain*. → *She **explained** that the meeting **had been** cancelled.*",
 }
 
 _APP_DIR = os.path.dirname(os.path.abspath(__file__)) or "."

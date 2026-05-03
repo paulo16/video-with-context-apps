@@ -39,3 +39,18 @@ def test_classify_future_going_to():
 def test_classify_present_perfect():
     t = classify_tense("I have seen that movie.")
     assert "present_perfect" in t
+
+
+def test_classify_conditional_would():
+    t = classify_tense("If I won the lottery, I would travel the world.")
+    assert "conditional" in t
+
+
+def test_classify_conditional_would_have():
+    t = classify_tense("She would have called if she had known.")
+    assert "conditional" in t
+
+
+def test_classify_reported_speech():
+    t = classify_tense("He said that she was tired.")
+    assert "reported_speech" in t

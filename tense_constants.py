@@ -20,6 +20,8 @@ ALL_TENSES = [
     "future_perfect",
     "future_perfect_continuous",
     "future_going_to",
+    "conditional",
+    "reported_speech",
 ]
 
 DEFAULT_WHISPER_MODEL = "base"

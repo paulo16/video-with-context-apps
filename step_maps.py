@@ -17,6 +17,8 @@ def _tense_labels() -> dict[str, str]:
         "future_perfect": "Future Perfect",
         "future_perfect_continuous": "Future Perfect Continuous",
         "future_going_to": "Future (going to)",
+        "conditional": "Conditional",
+        "reported_speech": "Reported speech",
     }
 
 
